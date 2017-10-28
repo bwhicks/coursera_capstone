@@ -1,0 +1,21 @@
+---
+title: "Swiftkey Corpus - Initial Analysis"
+author: "BWH"
+date: "10/28/2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Getting and Cleaning the Data
+
+My first step is to acquire the data, with the assumption that I've downloaded the dataset from the Coursera website.
+
+```{r, cache = TRUE}
+unzip('Coursera-Swiftkey.zip')
+```
+
+This call created an extracted folder called `final` that has the text files. I will be focusing on the English newspaper and Twitter log.

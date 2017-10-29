@@ -10,7 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 
-# Getting and Cleaning the Data
+# Getting the Data
 
 My first step is to acquire the data, with the assumption that I've downloaded the dataset from the Coursera website.
 
@@ -18,4 +18,77 @@ My first step is to acquire the data, with the assumption that I've downloaded t
 unzip('Coursera-Swiftkey.zip')
 ```
 
-This call created an extracted folder called `final` that has the text files. I will be focusing on the English newspaper and Twitter log.
+This call created an extracted folder called `final` that has the text files. I will be focusing on the English corpora.
+
+# Exploratory analysis and cleaning.
+
+My first task is to get a sense of the file size, both in terms of number of lines to be analyzed and overall size of the files as these will affect my analytic approach and sample size.
+
+```{bash cache=TRUE}
+CORPORA="final/en_us/*"
+# Get the size of the files
+ls -alh final/en_us
+
+for file in $CORPORA
+do
+  wc -l $file
+done
+```
+
+From this quick glance using Bash, we can see that the files are around 150 - 200 MB, with the most lines in the `en_US.twitter.txt`. Line numbers are roughly 900,000, 1 million, and 2 million respectively. These are larger files, so training models on a subset will be a useful mechanism.
+
+To clean these files, I will be using `tm`, a standard text processing package in R. 
+
+The initial cleanup is primarily oriented around removing numbers, punctuation, whitespace, lowering all charcters, and pulling out English stop words. I am not yet removing profanity or stemming the words (i.e. reducing them to their lemma). The latter is for usability purposes in my work, and the former because I suspect leaving profanity in while building a model may be useful.
+
+I am also subsetting each corpus to around 10,000 lines while developing my analysis.
+
+
+```{r cache=TRUE}
+blogs <- file('final/en_US/en_US.blogs.txt')
+news <- file('final/en_US/en_US.news.txt')
+twitter <- file('final/en_US/en_US.news.txt')
+
+blog_snip <- readLines(blogs, 10000)
+news_snip <- readLines(news, 10000)
+twitter_snip <- readLines(twitter, 10000)
+```
+
+```{r cache=TRUE}
+library(tm)
+
+en_US_files <- Corpus(VectorSource(c(blog_snip, news_snip, twitter_snip)))
+en_US_files <- tm_map(en_US_files, stripWhitespace)
+en_US_files <- tm_map(en_US_files, content_transformer(tolower))
+en_US_files <- tm_map(en_US_files, removePunctuation)
+en_US_files <- tm_map(en_US_files, removeNumbers)
+en_US_files <- tm_map(en_US_files, removeWords, stopwords("english"))
+```
+
+We now have a set of 30,000 lines that are cleaned for purposes of n-gram tokenization, which will give us some clue about unique words.
+
+# N-Gram Tokenization
+
+For purposes of this tokenization analysis, I will use RWeka, an R iterface to the Weka Java machine learning library that will help to tokenize the English using machine learning without needing to resort to a grammatical based approach.
+
+N-grams are a series of contiguous items in a string of speech, in this case, most likely words. I will analyze Unigrams, Bigrams, and Trigrams to look for relative frequencies for the top 20 each. To do so, I create term document matrices--collections of most common words in each document and how often they appear.
+
+```{r cache=TRUE}
+library(RWeka)
+
+UnigramTokenizer <- function (x) NGramTokenizer(x, Weka_control(min=1, max=1))
+BigramTokenizer <- function (x) NGramTokenizer(x, Weka_control(min=2, max=2))
+TrigramTokenizer <- function (x) NGramTokenizer(x, Weka_control(min=3, max=3))
+
+unigrams <- TermDocumentMatrix(en_US_files, control = list(tokenize = UnigramTokenizer))
+bigrams <- TermDocumentMatrix(en_US_files, control = list(tokenize = BigramTokenizer))
+trigrams <- TermDocumentMatrix(en_US_files, control = list(tokzen = TrigramTokenizer))
+```
+
+From these tokenized Term-Document Matrices, we can extra frequences of the most commonly occurring words and two and three- word phrases.
+
+
+
+
+
+

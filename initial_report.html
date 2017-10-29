@@ -124,10 +124,66 @@ $(document).ready(function () {
 </div>
 
 
-<div id="getting-and-cleaning-the-data" class="section level1">
-<h1>Getting and Cleaning the Data</h1>
+<div id="getting-the-data" class="section level1">
+<h1>Getting the Data</h1>
 <p>My first step is to acquire the data, with the assumption that I’ve downloaded the dataset from the Coursera website.</p>
 <pre class="r"><code>unzip('Coursera-Swiftkey.zip')</code></pre>
+<p>This call created an extracted folder called <code>final</code> that has the text files. I will be focusing on the English corpora.</p>
+</div>
+<div id="exploratory-analysis-and-cleaning." class="section level1">
+<h1>Exploratory analysis and cleaning.</h1>
+<p>My first task is to get a sense of the file size, both in terms of number of lines to be analyzed and overall size of the files as these will affect my analytic approach and sample size.</p>
+<pre class="bash"><code>CORPORA=&quot;final/en_us/*&quot;
+# Get the size of the files
+ls -alh final/en_us
+
+for file in $CORPORA
+do
+  wc -l $file
+done</code></pre>
+<pre><code>## total 1153072
+## drwxr-xr-x  5 bhicks  staff   160B Oct 28 17:32 .
+## drwxr-xr-x  6 bhicks  staff   192B Oct 28 17:32 ..
+## -rw-r--r--  1 bhicks  staff   200M Oct 28 17:33 en_US.blogs.txt
+## -rw-r--r--  1 bhicks  staff   196M Oct 28 17:33 en_US.news.txt
+## -rw-r--r--  1 bhicks  staff   159M Oct 28 17:33 en_US.twitter.txt
+##   899288 final/en_us/en_US.blogs.txt
+##  1010242 final/en_us/en_US.news.txt
+##  2360148 final/en_us/en_US.twitter.txt</code></pre>
+<p>From this quick glance using Bash, we can see that the files are around 150 - 200 MB, with the most lines in the <code>en_US.twitter.txt</code>. Line numbers are roughly 900,000, 1 million, and 2 million respectively. These are larger files, so training models on a subset will be a useful mechanism.</p>
+<p>To clean these files, I will be using <code>tm</code>, a standard text processing package in R.</p>
+<p>The initial cleanup is primarily oriented around removing numbers, punctuation, whitespace, lowering all charcters, and pulling out English stop words. I am not yet removing profanity or stemming the words (i.e. reducing them to their lemma). The latter is for usability purposes in my work, and the former because I suspect leaving profanity in while building a model may be useful.</p>
+<p>I am also subsetting each corpus to around 10,000 lines while developing my analysis.</p>
+<pre class="r"><code>blogs &lt;- file('final/en_US/en_US.blogs.txt')
+news &lt;- file('final/en_US/en_US.news.txt')
+twitter &lt;- file('final/en_US/en_US.news.txt')
+
+blog_snip &lt;- readLines(blogs, 10000)
+news_snip &lt;- readLines(news, 10000)
+twitter_snip &lt;- readLines(twitter, 10000)</code></pre>
+<pre class="r"><code>library(tm)</code></pre>
+<pre><code>## Loading required package: NLP</code></pre>
+<pre class="r"><code>en_US_files &lt;- Corpus(VectorSource(c(blog_snip, news_snip, twitter_snip)))
+en_US_files &lt;- tm_map(en_US_files, stripWhitespace)
+en_US_files &lt;- tm_map(en_US_files, content_transformer(tolower))
+en_US_files &lt;- tm_map(en_US_files, removePunctuation)
+en_US_files &lt;- tm_map(en_US_files, removeNumbers)
+en_US_files &lt;- tm_map(en_US_files, removeWords, stopwords(&quot;english&quot;))</code></pre>
+<p>We now have a set of 30,000 lines that are cleaned for purposes of n-gram tokenization, which will give us some clue about unique words.</p>
+</div>
+<div id="n-gram-tokenization" class="section level1">
+<h1>N-Gram Tokenization</h1>
+<p>For purposes of this tokenization analysis, I will use RWeka, an R iterface to the Weka Java machine learning library that will help to tokenize the English using machine learning without needing to resort to a grammatical based approach.</p>
+<p>N-grams are a series of contiguous items in a string of speech, in this case, most likely words. I will analyze Unigrams, Bigrams, and Trigrams to look for relative frequencies for the top 20 each. To do so, I create term document matrices–collections of most common words in each document and how often they appear.</p>
+<pre class="r"><code>library(RWeka)
+
+UnigramTokenizer &lt;- function (x) NGramTokenizer(x, Weka_control(min=1, max=1))
+BigramTokenizer &lt;- function (x) NGramTokenizer(x, Weka_control(min=2, max=2))
+TrigramTokenizer &lt;- function (x) NGramTokenizer(x, Weka_control(min=3, max=3))
+
+unigrams &lt;- TermDocumentMatrix(en_US_files, control = list(tokenize = UnigramTokenizer))
+bigrams &lt;- TermDocumentMatrix(en_US_files, control = list(tokenize = BigramTokenizer))
+trigrams &lt;- TermDocumentMatrix(en_US_files, control = list(tokzen = TrigramTokenizer))</code></pre>
 </div>
 
 

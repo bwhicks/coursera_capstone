@@ -9,10 +9,14 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+```{r}
+library(ggplot2)
+library(quanteda)
+```
 
 # Getting the Data
 
-My first step is to acquire the data, with the assumption that I've downloaded the dataset from the Coursera website.
+My first step is to acquire the data, with the assumption that I've downloaded the dataset from the Coursera website. I'll then proceed to clean it and work through the steps of getting a sense of the problem at hand.
 
 ```{r, cache = TRUE}
 unzip('Coursera-Swiftkey.zip')
@@ -24,7 +28,7 @@ This call created an extracted folder called `final` that has the text files. I 
 
 My first task is to get a sense of the file size, both in terms of number of lines to be analyzed and overall size of the files as these will affect my analytic approach and sample size.
 
-```{bash cache=TRUE}
+```{bash}
 CORPORA="final/en_us/*"
 # Get the size of the files
 ls -alh final/en_us
@@ -33,11 +37,16 @@ for file in $CORPORA
 do
   wc -l $file
 done
+
+for file in $CORPORA
+do
+  wc -w $file
+done
 ```
 
-From this quick glance using Bash, we can see that the files are around 150 - 200 MB, with the most lines in the `en_US.twitter.txt`. Line numbers are roughly 900,000, 1 million, and 2 million respectively. These are larger files, so training models on a subset will be a useful mechanism.
+From this quick glance using Bash, we can see that the files are around 150 - 200 MB, with the most lines in the `en_US.twitter.txt`. Line numbers are roughly 900,000, 1 million, and 2 million respectively. These are larger files, so training models on a subset will be a useful mechanism. Note also the word counts.
 
-To clean these files, I will be using `tm`, a standard text processing package in R. 
+To clean these files, I will be using `quanteda`, a package that combines text mining functionality with advanced tokenization.
 
 The initial cleanup is primarily oriented around removing numbers, punctuation, whitespace, lowering all charcters, and pulling out English stop words. I am not yet removing profanity or stemming the words (i.e. reducing them to their lemma). The latter is for usability purposes in my work, and the former because I suspect leaving profanity in while building a model may be useful.
 
@@ -52,43 +61,77 @@ twitter <- file('final/en_US/en_US.news.txt')
 blog_snip <- readLines(blogs, 10000)
 news_snip <- readLines(news, 10000)
 twitter_snip <- readLines(twitter, 10000)
+
+close(blogs)
+close(news)
+close(twitter)
 ```
 
 ```{r cache=TRUE}
-library(tm)
+sample <- c(blog_snip, news_snip, twitter_snip)
 
-en_US_files <- Corpus(VectorSource(c(blog_snip, news_snip, twitter_snip)))
-en_US_files <- tm_map(en_US_files, stripWhitespace)
-en_US_files <- tm_map(en_US_files, content_transformer(tolower))
-en_US_files <- tm_map(en_US_files, removePunctuation)
-en_US_files <- tm_map(en_US_files, removeNumbers)
-en_US_files <- tm_map(en_US_files, removeWords, stopwords("english"))
+full_clear <- function(ngrams = 1) {
+  dfm(sample, ngrams = ngrams, remove = stopwords('english'), 
+      remove_punct = TRUE, remove_numbers = TRUE, 
+      remove_symbols=TRUE)
+}
+
+unigrams <- full_clear()
+bigrams <- full_clear(2)
+trigrams <- full_clear(3)
 ```
 
-We now have a set of 30,000 lines that are cleaned for purposes of n-gram tokenization, which will give us some clue about unique words.
+We now have a set of 30,000 lines that are cleaned for purposes of n-gram tokenization, which will give us some clue about unique words. `dfm` implictly lower cases the results. Note that for this analysis, stop words are removed after creating ngrams, so 'the' will be filtered but 'that of the' would not be. See below for discussion.
 
 # N-Gram Tokenization
 
-For purposes of this tokenization analysis, I will use RWeka, an R iterface to the Weka Java machine learning library that will help to tokenize the English using machine learning without needing to resort to a grammatical based approach.
+N-grams are a series of contiguous items in a string of speech, in this case, most likely words. I will analyze Unigrams, Bigrams, and Trigrams to look for relative frequencies for the top 15-20 each. 
 
-N-grams are a series of contiguous items in a string of speech, in this case, most likely words. I will analyze Unigrams, Bigrams, and Trigrams to look for relative frequencies for the top 20 each. To do so, I create term document matrices--collections of most common words in each document and how often they appear.
+For purposes of visualization, I have compiled graphs of the 20 most common phrases for unigram, bigrams, and trigrams compiled by `quanted`. The removal of stopwords occurs such that they are allowed as part of bigrams and trigrams. I have separately graphed each of the three iterations of ngram.
 
-```{r cache=TRUE}
-library(RWeka)
+```{r fig.width=12}
+unifreq <- topfeatures(unigrams, 20)
+unidf <- data.frame(unigrams = names(unifreq), frequency = unifreq)
+ggplot(unidf, aes(x=reorder(unigrams, -unifreq), y = frequency)) +
+  geom_bar(stat = "identity", fill = "blue") +
+  ggtitle('Top 20 Unigram results by frequency') +
+  ylab('Word/Phrase') +
+  xlab('Frequency')
+  
+bifreq <- topfeatures(bigrams, 20)
+bidf <- data.frame(bigrams = names(bifreq), frequency = bifreq)
+ggplot(bidf, aes(x=reorder(bigrams, -bifreq), y = frequency)) +
+  geom_bar(stat = "identity", fill = "red") +
+  ggtitle('Top 20 Bigram results by frequency') +
+  ylab('Word/Phrase') +
+  xlab('Frequency') 
 
-UnigramTokenizer <- function (x) NGramTokenizer(x, Weka_control(min=1, max=1))
-BigramTokenizer <- function (x) NGramTokenizer(x, Weka_control(min=2, max=2))
-TrigramTokenizer <- function (x) NGramTokenizer(x, Weka_control(min=3, max=3))
-
-unigrams <- TermDocumentMatrix(en_US_files, control = list(tokenize = UnigramTokenizer))
-bigrams <- TermDocumentMatrix(en_US_files, control = list(tokenize = BigramTokenizer))
-trigrams <- TermDocumentMatrix(en_US_files, control = list(tokzen = TrigramTokenizer))
+trifreq <- topfeatures(trigrams, 15)
+tridf <- data.frame(trigrams = names(trifreq), frequency = trifreq)
+ggplot(tridf, aes(x=reorder(trigrams, -trifreq), y = frequency)) +
+  geom_bar(stat = "identity", fill = "green") +
+  ggtitle('Top 15 Trigram results by frequency') +
+  ylab('Word/Phrase') +
+  xlab('Frequency') 
 ```
 
-From these tokenized Term-Document Matrices, we can extra frequences of the most commonly occurring words and two and three- word phrases.
+It is worth noting a comparison on the trigram prefiltering all stop words before constructing a data frequency matrix and ngrams.
 
+```{r}
 
+tokenized <- tokens(sample, remove_punct = TRUE, 
+                       remove_numbers = TRUE, remove_symbols=TRUE)
+noStops <- removeFeatures(tokenized, stopwords("english"))
+trigramNoStops <- tokens_ngrams(noStops, 3)
+topfeatures(dfm(trigramNoStops), 15)
+```
 
+# Predictive Algorithm and Plans for Shiny App
 
+This exploratory analysis suggests a few ways forward for the Shiny App. A frequency table lookup against two sets of possibilities, offering a top ~three choices makes the most sense.
+
+This will accomodate both approaches that remove stop words for unigrams, but allow them for bi and trigrams as they often suggest intelligent phrases, and other approaches that emphasize finding distinct words and phrases (i.e. in the last table, 'new york' should almost certainly offer 'city' as a prediction)
+
+The basic structure of the Shiny App would receive words or words, and then lookup based on frequency models built from the training corporta to guess at both words following from stopwords and words following from stop words removed.
 
 

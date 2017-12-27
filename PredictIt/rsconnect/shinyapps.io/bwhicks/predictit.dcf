@@ -1,0 +1,12 @@
+name: predictit
+title: PredictIt
+username:
+account: bwhicks
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 251959
+bundleId: 1152613
+url: https://bwhicks.shinyapps.io/predictit/
+when: 1514406622.72635
+asMultiple: FALSE
+asStatic: FALSE

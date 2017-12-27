@@ -13,7 +13,7 @@ library(markdown)
 # Load previously produced n-gram model
 # all models are in order of their frequency from highest to
 # lowest already to save computing time on Shiny App.
-load('../ngram-freqs.Rdata')
+load('ngram-freqs.Rdata')
 
 # Uses a stupid backoff through quad, tri, and bigrams
 # to make a guess at completing a sequence in an autocomplete.
@@ -113,7 +113,7 @@ backoff <- function(wordvec) {
 
 
 
-# Define UI for application that draws a histogram
+# Define UI for application that renders the word matches
 ui <- dashboardPage(
   skin = 'yellow',
   dashboardHeader(title = 'PredictIt'),
@@ -122,17 +122,18 @@ ui <- dashboardPage(
     menuItem("Documentation", tabName = "documentation"),
     menuItem("Author", tabName = "author")
   )),
-  dashboardBody(# Application title
+  dashboardBody(
     tabItems(
       tabItem(
         tabName = "predict",
         titlePanel("PredictIt"),
         
-        # Sidebar with a slider input for number of bins
+        # Text input with a submit button
         sidebarLayout(sidebarPanel(
           textInput('caption',
                     label = "Phrase"),
-          submitButton("Predict three possible next words.")
+          submitButton("Predict three possible next words."),
+          p('Predictions may take a few moments to appear. Your patience is appreciated!')
         ),
         
         # Show a plot of the generated distribution
@@ -159,8 +160,6 @@ server <- function(input, output) {
     backoff(tolower(wordvec))
   })
 }
-
-
 
 
 # Run the application

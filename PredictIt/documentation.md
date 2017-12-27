@@ -2,7 +2,7 @@
 
 ## PredictIt
 
-This application uses an N-Gram language model up to quingrams to match phrases
+This application uses an n-gram language model up to quingrams to match phrases
 up to four words deep at the tail of a phrase. You can expect it to be
 reasonably quick, accurate at producing likely combinations from the dataset
 (a provided training data set from US news sources, blogs, and Twitter),
@@ -18,13 +18,13 @@ The application uses a set of pre-trained models computed from
 using the [Quanteda](http://docs.quanteda.io/) package to create a training
 corpus from the provided material.
 
-The document feature matrices (dfms) were arranged into 1-5 N-Grams, sorted descending by their frequency in the given text.
+The document feature matrices (dfms) were arranged into 1-5-grams, sorted descending by their frequency in the given text.
 
 The app's [code](https://github.com/bwhicks/coursera_capstone/blob/master/wordPredict/app.R), esepcially the function `backoff` searches for n-grams with the beginning set of words in sequence (i.e.
-  in the phrase `I saw the cow and the` it will look for ngrams beginning `the cow and the`) backing off the number of words and the N-gram size starting
+  in the phrase `I saw the cow and the` it will look for ngrams beginning `the cow and the`) backing off the number of words and the n-gram size starting
   with five and descending to bigrams backing off `.40` each time in ranking
   with each backoff until there are at least three matches in the data frame,
-  which is then sorted and the top three are presented. This the so-called
+  which is then sorted and the top three are presented. This is the so-called
   'Stupid Backoff' model adapted from [Brants, Popat, et. al (2007)](http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.324.3653)
 
   If no matches are found, a random selection of three highly frequent unigrams

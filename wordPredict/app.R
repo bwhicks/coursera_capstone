@@ -119,7 +119,8 @@ ui <- dashboardPage(
   dashboardHeader(title = 'PredictIt'),
   dashboardSidebar(sidebarMenu(
     menuItem("PredictIt", tabName = "predict"),
-    menuItem("Documentation", tabName = "documentation")
+    menuItem("Documentation", tabName = "documentation"),
+    menuItem("Author", tabName = "author")
   )),
   dashboardBody(# Application title
     tabItems(
@@ -141,7 +142,9 @@ ui <- dashboardPage(
         ))
       ),
       tabItem(tabName = "documentation",
-              fluidPage(includeMarkdown('documentation.md')))
+              fluidPage(includeMarkdown('documentation.md'))),
+      tabItem(tabName = "author",
+              fluidPage(includeMarkdown('author.md')))
     ))
 )
 
